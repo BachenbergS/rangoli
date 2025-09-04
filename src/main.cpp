@@ -26,34 +26,27 @@
 #include "messagehandler.h"
 
 using namespace Qt::Literals::StringLiterals;
-
 int main(int argc, char *argv[])
 {
-    if (MessageHandler::init())
-    {
+    if (MessageHandler::init()) {
         qInstallMessageHandler(MessageHandler::handler);
-    }
-    else
-    {
+    } else {
         qCritical("Unable to start logging to file!");
     }
 
     qInfo() << "Rangoli" << VERSION;
 
-    if (QQuickWindow::graphicsApi() == QSGRendererInterface::Software)
-    {
+    if (QQuickWindow::graphicsApi() == QSGRendererInterface::Software) {
         qInfo() << "Graphics: Software";
-    }
-    else
-    {
+    } else {
         qInfo() << "Graphics: Hardware";
     }
+
+    QApplication app(argc, argv);
 
     MainWindowController mainWindowController;
     KeyboardConfiguratorController keyboardConfiguratorController;
     SettingsController settingsController;
-
-    QApplication app(argc, argv);
 
     qInfo() << "Platform:" << app.platformName();
     qInfo() << "Qt" << qVersion();
@@ -73,18 +66,22 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
+    // Logging sauber schließen
     QObject::connect(&engine, &QQmlApplicationEngine::quit, MessageHandler::close);
 
-    engine.setContextForObject(&mainWindowController, engine.rootContext());
+    // QML-Kontext setzen
     engine.rootContext()->setContextProperty(u"mainWindowController"_s, &mainWindowController);
-
-    engine.setContextForObject(&keyboardConfiguratorController, engine.rootContext());
     engine.rootContext()->setContextProperty(u"keyboardConfiguratorController"_s, &keyboardConfiguratorController);
-
-    engine.setContextForObject(&settingsController, engine.rootContext());
     engine.rootContext()->setContextProperty(u"settingsController"_s, &settingsController);
 
     engine.load(u"qrc:/Rangoli/Main.qml"_s);
+
+    // --- NEUE ZEILE ---
+    if (!engine.rootObjects().isEmpty()) {
+        QObject *rootObject = engine.rootObjects().first();
+        QObject::connect(rootObject, &QObject::destroyed,
+                         &mainWindowController, &MainWindowController::onMainWindowClosed);
+    }
 
     return app.exec();
 }
