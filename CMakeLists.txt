@@ -55,6 +55,9 @@ add_compile_definitions(
 
 find_package(Qt6 COMPONENTS Quick Svg Widgets REQUIRED)
 
+# Qt Policy setzen, damit die Warnung verschwindet
+qt_policy(SET QTP0001 NEW)
+
 set(HIDAPI_WITH_LIBUSB FALSE)
 set(BUILD_SHARED_LIBS FALSE)
 

@@ -364,156 +364,125 @@ void MainWindowController::setCloseToSystemTrayIcon(const bool &closeToSystemTra
 void MainWindowController::launchLinuxUdevWriter()
 {
     qInfo() << "Launch Linux udev writer";
-
     setLinuxUdevPopupProceedButtonEnabled(false);
 
-    if (!QFile::exists(QStringLiteral(LINUX_UDEV_RULE_WRITER_NAME)))
-    {
+    // Absoluter Pfad zum udev writer
+    QString udevWriterPath = QDir(QCoreApplication::applicationDirPath())
+                                 .filePath(LINUX_UDEV_RULE_WRITER_NAME);
+    if (!QFile::exists(udevWriterPath)) {
         emit loadEnhancedDialog(EnhancedDialog{
             tr("Error"),
-            tr("Unable to find udev rule writer.")});
-
+            tr("Unable to find udev rule writer.")
+        });
         setLinuxUdevPopupProceedButtonEnabled(true);
         return;
     }
 
-    QString exitOK{u"0"_s};
-    QString exitKeyboardsReadFailed{u"1"_s};
-    QString exitRuleWriteFailed{u"2"_s};
+    QString exitOK{"0"};
+    QString exitKeyboardsReadFailed{"1"};
+    QString exitRuleWriteFailed{"2"};
+
+    QString outputPath = QDir(QCoreApplication::applicationDirPath())
+                             .filePath("udev-rule-writer_OUTPUT");
 
     QString oldID;
-    QString outputPath{QStringLiteral("%1_OUTPUT").arg(QStringLiteral(LINUX_UDEV_RULE_WRITER_NAME))};
     QFile oldOutput{outputPath};
-
-    if (oldOutput.exists())
-    {
-        if (!oldOutput.open(QIODevice::ReadOnly))
-        {
-            qCritical() << "Failed to old output" << outputPath;
+    if (oldOutput.exists()) {
+        if (!oldOutput.open(QIODevice::ReadOnly)) {
+            qCritical() << "Failed to read old output:" << outputPath;
             emit loadEnhancedDialog(EnhancedDialog{
                 tr("Error"),
-                tr("Unable to read old ID.")});
-
+                tr("Unable to read old ID.")
+            });
             setLinuxUdevPopupProceedButtonEnabled(true);
             return;
         }
-
         oldID = oldOutput.readAll().split(':').at(0);
         oldOutput.close();
     }
 
-    QPointer<QProcess> udevWriter{new QProcess{this}};
-    connect(udevWriter, &QProcess::finished, this,
-            [this, outputPath, exitOK, exitKeyboardsReadFailed, exitRuleWriteFailed, oldID](int exitCode, QProcess::ExitStatus exitStatus)
-            {
-                Q_UNUSED(exitStatus)
-                Q_UNUSED(exitCode)
+    // QProcess als Member halten, damit es nicht sofort zerstört wird
+    udevWriterProcess.reset(new QProcess(this));
 
-                setLinuxUdevPopupProceedButtonEnabled(true);
+    connect(udevWriterProcess.get(), &QProcess::finished, this,
+            [this, outputPath, exitOK, exitKeyboardsReadFailed, exitRuleWriteFailed, oldID](int /*exitCode*/, QProcess::ExitStatus) {
+        setLinuxUdevPopupProceedButtonEnabled(true);
 
-                QFile output{outputPath};
-
-                if (!output.open(QIODevice::ReadOnly))
-                {
-                    qCritical() << "Failed to new output" << outputPath;
-                    emit loadEnhancedDialog(EnhancedDialog{
-                        tr("Error"),
-                        tr("The udev rules writer failed to run. Did you provide incorrect password?")});
-                    return;
-                }
-
-                QByteArray outRaw = output.readAll();
-                qDebug() << "Output File raw:" << outRaw;
-
-                output.close();
-
-                QList<QByteArray> outputs{outRaw.split(':')};
-                qDebug() << "Outputs length:" << outputs.length();
-
-                QString newID = outputs.at(0);
-                qDebug() << "New ID:" << newID;
-                qDebug() << "Old ID:" << oldID;
-
-                if (newID == oldID)
-                {
-                    emit loadEnhancedDialog(EnhancedDialog{
-                        tr("Error"),
-                        tr("The udev rules writer failed to run. Did you provide incorrect password?")});
-                    return;
-                }
-
-                if (outputs.length() != 2)
-                {
-                    emit loadEnhancedDialog(EnhancedDialog{
-                        tr("Error"),
-                        tr("Malformed output from udev writer.")});
-                    return;
-                }
-
-                QString newExitCode = outputs.at(1);
-                qDebug() << "New exit code:" << newExitCode;
-
-                if (newExitCode == exitOK)
-                {
-                    emit closeLinuxUdevPopup();
-
-                    emit loadEnhancedDialog(EnhancedDialog{
-                        tr("Successful"),
-                        tr("udev rules have been applied and reloaded! Enjoy Rangoli!")});
-
-                    qvariant_cast<SettingsController *>(qmlEngine(this)
-                                                            ->rootContext()
-                                                            ->contextProperty(u"settingsController"_s))
-                        ->setUdevRulesWritten(true);
-                }
-                else if (newExitCode == exitKeyboardsReadFailed)
-                {
-                    qCritical() << "Failed to read keyboards information";
-
-                    emit loadEnhancedDialog(EnhancedDialog{
-                        tr("Error"),
-                        tr("Failed to read keyboards information")});
-                }
-                else if (newExitCode == exitRuleWriteFailed)
-                {
-                    qCritical() << "Malformed output from udev writer";
-
-                    emit loadEnhancedDialog(EnhancedDialog{
-                        tr("Error"),
-                        tr("Malformed output from udev writer.")});
-                }
-                else
-                {
-                    qCritical() << "Malformed exit code from udev writer";
-
-                    emit loadEnhancedDialog(EnhancedDialog{
-                        tr("Error"),
-                        tr("Malformed exit code from udev writer.")});
-                }
+        QFile output{outputPath};
+        if (!output.open(QIODevice::ReadOnly)) {
+            qCritical() << "Failed to read output:" << outputPath;
+            emit loadEnhancedDialog(EnhancedDialog{
+                tr("Error"),
+                tr("The udev rules writer failed to run. Did you provide incorrect password?")
             });
+            return;
+        }
 
-    connect(udevWriter, &QProcess::errorOccurred, this,
-            [this](QProcess::ProcessError error)
-            {
-                setLinuxUdevPopupProceedButtonEnabled(true);
+        QByteArray outRaw = output.readAll();
+        output.close();
 
-                qCritical() << "Failed to start pkexec. Error Code:" << error;
-
-                emit loadEnhancedDialog(EnhancedDialog{
-                    tr("Unable to start udev rules writer"),
-                    tr("You need to have 'pkexec' installed and properly configured!")});
+        QList<QByteArray> outputs{outRaw.split(':')};
+        if (outputs.size() != 2 || outputs.at(0) == oldID) {
+            emit loadEnhancedDialog(EnhancedDialog{
+                tr("Error"),
+                tr("The udev rules writer failed to run. Did you provide incorrect password?")
             });
+            return;
+        }
 
-    // Statt Terminal + sudo → direkt pkexec nutzen
-    udevWriter->start(QStringLiteral("pkexec"), QStringList()
-                                                    << QStringLiteral("./%1").arg(QStringLiteral(LINUX_UDEV_RULE_WRITER_NAME))
-                                                    << QStringLiteral("%1/keyboards").arg(QDir::currentPath())
-                                                    << QStringLiteral(LINUX_UDEV_RULES_PATH)
-                                                    << outputPath
-                                                    << exitOK
-                                                    << exitKeyboardsReadFailed
-                                                    << exitRuleWriteFailed);
+        QString newExitCode = outputs.at(1);
+        if (newExitCode == exitOK) {
+            emit closeLinuxUdevPopup();
+            emit loadEnhancedDialog(EnhancedDialog{
+                tr("Successful"),
+                tr("udev rules have been applied and reloaded! Enjoy Rangoli!")
+            });
+            auto settings = qvariant_cast<SettingsController *>(qmlEngine(this)
+                ->rootContext()
+                ->contextProperty(u"settingsController"_s));
+            if (settings) {
+                settings->setUdevRulesWritten(true);
+            }
+        } else if (newExitCode == exitKeyboardsReadFailed) {
+            emit loadEnhancedDialog(EnhancedDialog{
+                tr("Error"),
+                tr("Failed to read keyboards information")
+            });
+        } else if (newExitCode == exitRuleWriteFailed) {
+            emit loadEnhancedDialog(EnhancedDialog{
+                tr("Error"),
+                tr("Malformed output from udev writer.")
+            });
+        } else {
+            emit loadEnhancedDialog(EnhancedDialog{
+                tr("Error"),
+                tr("Malformed exit code from udev writer.")
+            });
+        }
+    });
+
+    connect(udevWriterProcess.get(), &QProcess::errorOccurred, this,
+            [this](QProcess::ProcessError error) {
+        setLinuxUdevPopupProceedButtonEnabled(true);
+        qCritical() << "Failed to start pkexec. Error:" << error;
+        emit loadEnhancedDialog(EnhancedDialog{
+            tr("Unable to start udev rules writer"),
+            tr("You need to have 'pkexec' installed and properly configured!")
+        });
+    });
+
+    // pkexec starten
+    udevWriterProcess->start(QStringLiteral("pkexec"), QStringList{
+        udevWriterPath,
+        QStringLiteral("%1/keyboards").arg(QDir::currentPath()),
+        LINUX_UDEV_RULES_PATH,
+        outputPath,
+        exitOK,
+        exitKeyboardsReadFailed,
+        exitRuleWriteFailed
+    });
 }
+
 
 void MainWindowController::setLinuxUdevPopupProceedButtonEnabled(const bool &linuxUdevPopupProceedButtonEnabled)
 {
@@ -535,10 +504,10 @@ void MainWindowController::showFatalError(const QString &title, const QString &m
 
     qCritical() << message;
 
-    d.setOnAccepted([this](){
+    d.setOnAccepted([this]()
+                    {
         setCloseToSystemTrayIcon(false);
-        quit();
-    });
+        quit(); });
 
     emit loadEnhancedDialog(d);
 }
