@@ -143,7 +143,7 @@ private:
     const int m_toolTipTimeout;
 
     bool m_linuxUdevPopupProceedButtonEnabled;
-
+    std::unique_ptr<QProcess> udevWriterProcess;
 };
 
 #endif // MAINWINDOWCONTROLLER_H
