@@ -483,15 +483,6 @@ void MainWindowController::launchLinuxUdevWriter()
     });
 }
 
-void MainWindowController::onMainWindowClosed()
-{
-    if (udevWriterProcess && udevWriterProcess->state() != QProcess::NotRunning) {
-        udevWriterProcess->kill();
-        udevWriterProcess->waitForFinished();
-    }
-    qApp->quit();
-}
-
 
 void MainWindowController::setLinuxUdevPopupProceedButtonEnabled(const bool &linuxUdevPopupProceedButtonEnabled)
 {
