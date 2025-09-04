@@ -527,13 +527,13 @@ void MainWindowController::launchLinuxUdevWriter()
         }
     });
 
-    udevWriter->start(QStringLiteral(LINUX_TERMINAL), QStringList() << u"-e"_s <<
-                          QStringLiteral("echo -n \"\\033]0;%1\\007\" && sudo ./%2 %3 %4 %5 %6 %7 %8")
-                          .arg(tr("Rangoli - Create udev Rules"),
-                               QStringLiteral(LINUX_UDEV_RULE_WRITER_NAME),
-                               QStringLiteral("%1/keyboards").arg(QDir::currentPath()),
-                               QStringLiteral(LINUX_UDEV_RULES_PATH),
-                               outputPath, exitOK, exitKeyboardsReadFailed, exitRuleWriteFailed));
+    udevWriter->start(QStringLiteral("pkexec"),
+        QStringList{
+            QStringLiteral("./%1").arg(LINUX_UDEV_RULE_WRITER_NAME),
+            QStringLiteral("%1/keyboards").arg(QDir::currentPath()),
+            QStringLiteral(LINUX_UDEV_RULES_PATH),
+            outputPath, exitOK, exitKeyboardsReadFailed, exitRuleWriteFailed
+    });
 }
 
 void MainWindowController::setLinuxUdevPopupProceedButtonEnabled(const bool &linuxUdevPopupProceedButtonEnabled)
