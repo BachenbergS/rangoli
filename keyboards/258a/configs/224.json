@@ -82,8 +82,7 @@
         { "bIndex":117, "keyCode":"Key_Num_6", "top":[1576, 310], "bottom":[1652, 388] },
 
         { "bIndex":4, "keyCode":"Key_Left_Shift", "top":[38, 395], "bottom":[135, 470] },
-        { "bIndex":10, "keyCode":"Key_102ND", "top":[142, 395], "bottom":[220, 470] },
-        { "bIndex":16, "keyCode":"Key_Z", "top":[226, 395], "bottom":[302, 470] },
+        { "bIndex":10, "keyCode":"Key_Z", "top":[226, 395], "bottom":[302, 470] },
         { "bIndex":16, "keyCode":"Key_X", "top":[310, 395], "bottom":[386, 470] },
         { "bIndex":22, "keyCode":"Key_C", "top":[392, 395], "bottom":[468, 470] },
         { "bIndex":28, "keyCode":"Key_V", "top":[474, 395], "bottom":[550, 470] },
