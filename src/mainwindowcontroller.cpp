@@ -366,7 +366,7 @@ void MainWindowController::launchLinuxUdevWriter()
     qInfo() << "Launch Linux udev writer";
     setLinuxUdevPopupProceedButtonEnabled(false);
 
-    // Absoluter Pfad zum udev writer
+    // Absolute path to udev writer
     QString udevWriterPath = QDir(QCoreApplication::applicationDirPath())
                                  .filePath(LINUX_UDEV_RULE_WRITER_NAME);
     if (!QFile::exists(udevWriterPath)) {
@@ -401,7 +401,7 @@ void MainWindowController::launchLinuxUdevWriter()
         oldOutput.close();
     }
 
-    // QProcess als Member halten, damit es nicht sofort zerstört wird
+    // Keep QProcess as member so it doesn't get destroyed immediately
     udevWriterProcess.reset(new QProcess(this));
 
     connect(udevWriterProcess.get(), &QProcess::finished, this,
@@ -471,7 +471,7 @@ void MainWindowController::launchLinuxUdevWriter()
         });
     });
 
-    // pkexec starten
+    // Start pkexec
     udevWriterProcess->start(QStringLiteral("pkexec"), QStringList{
         udevWriterPath,
         QStringLiteral("%1/keyboards").arg(QDir::currentPath()),
